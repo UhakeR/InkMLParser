@@ -1,3 +1,3 @@
-INKML_FILES_PATH : C:\Users\urreh\Documents\MATH-OCR\data\TrainINKML_2013
-IMAGES_TEMP_PATH : C:\Users\urreh\Documents\MATH-OCR\data\Temp
+INKML_FILES_PATH : files_path
+IMAGES_TEMP_PATH : temp_path
 IMAGES_SIZE : 218,218
