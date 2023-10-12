@@ -93,7 +93,7 @@ class Inkml2Img:
         self.image_path = image_path
         self.saveImage()
     
-    def saveImage(self) -> str:  
+    def saveTracesAsImage(self) -> str:  
         plt.gca().set_aspect('equal', adjustable='box')
         plt.rcParams["figure.figsize"] = (20,3)
         for i in range(len(self.Traces['X'])):
@@ -103,6 +103,12 @@ class Inkml2Img:
         self.image_path = f'{self.image_path}\{name}.png'
         plt.savefig(self.image_path)
         plt.clf()
+        return self.image_path
+
+    def saveSymbolsAsImage(self) -> str:  
+        """
+        """
+
         return self.image_path
 
 
@@ -116,8 +122,9 @@ class InkML2Table(InkMLParser):
         super().__init__(file=files_path)
         self.temp = temp
         self.image_size = size
+        print(self.symbols_data)
         self.image_path = Inkml2Img(self.symbols_data,self.UI,self.temp)
-
+        
         self.symbols_array = self.img2array()
 
         #Parse the InkML file
@@ -138,6 +145,3 @@ class InkML2Table(InkMLParser):
         img.resize(size=self.image_size)
         img.convert('RGB')
         return np.array(img)
-if __name__=="__main__":
-    InkML = InkMLParser(sys.argv[1])
-    ink = Inkml2Img(InkML,sys.argv[2])
