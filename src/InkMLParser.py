@@ -1,16 +1,15 @@
-
 from xml.etree import ElementTree
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 import numpy.typing as nty
 from PIL import Image
-import numpy as np
 import os
 import yaml
 
 
-class InkMLParser():
+class InkMLParser:
 
     def __init__(self, file:str) -> None:
         """
@@ -81,7 +80,7 @@ class InkMLParser():
        
 
 class Inkml2Img:
-    def __init__(self,inkML:InkMLParser,image_path: str) -> None:
+    def __init__(self,traces_data:{'X': [float] ,'Y': [float]},UI:str,image_path: str) -> None:
         """
         Save InkML file's trace data to image
 
@@ -89,53 +88,56 @@ class Inkml2Img:
             inkML (InkMLParser): InkMLParser object of the file you want to save as image
             image_path (str): Path in which the image will be saved
         """
-        self.inkML = inkML
+        self.Traces = traces_data
+        self.UI = UI
         self.image_path = image_path
         self.saveImage()
     
-    def saveImage(self):  
-        Trace = self.inkML.traces_data
+    def saveImage(self) -> str:  
         plt.gca().set_aspect('equal', adjustable='box')
         plt.rcParams["figure.figsize"] = (20,3)
-        for i in range(len(Trace['X'])):
-            plt.plot(np.array(Trace['X'][i]),np.array(Trace['Y'][i]) , color='black',linewidth=2)
+        for i in range(len(self.Traces['X'])):
+            plt.plot(np.array(self.Traces['X'][i]),np.array(self.Traces['Y'][i]) , color='black',linewidth=2)
         plt.axis('off')
-        name = self.inkML.UI.replace('"','')
+        name = self.UI.replace('"','')
         self.image_path = f'{self.image_path}\{name}.png'
-        plt.savefig(f'{self.image_path}\{name}.png',)
+        plt.savefig(self.image_path)
         plt.clf()
+        return self.image_path
 
 
 
 
 
-class InkML2Table:
-    def __init__(self, InkML:InkMLParser,image_path:str, size:(int,int), temp:str) -> None:
+
+class InkML2Table(InkMLParser):
+    def __init__(self, files_path:str, size:(int,int), temp:str) -> None:
         
-        self.InkML = InkML
+        super().__init__(file=files_path)
+        self.temp = temp
+        self.image_size = size
+        self.image_path = Inkml2Img(self.symbols_data,self.UI,self.temp)
 
-        # config = yaml.safe_load(open(r".\config.yml"))
-        # directory = config['INKML_FILES_PATH']
- 
+        self.symbols_array = self.img2array()
 
-        # for filename in os.listdir(directory):
-        #     file = os.path.join(directory, filename)
-        #     InkML = InkMLParser(file)
-        #     if InkML._continue_:
-        #         Inkml2Img(InkML,config['IMAGES_TEMP_PATH'])
-        #     else:
-        #         continue
-        # self.img = Image.open(image_path)
-        # self.img.thumbnail(size)
-        # self.img.convert('RGB')
-        # self.array = np.array(self.img)
+        #Parse the InkML file
+        #Get the InkML metadata
+        #Save the InkML symbols as image
+        #Save the inkML traces as image
+        #Read each image and create the array of it
+        #Connect the symbol data with the traces data with some unique key
+        #Save the traces and symbols data as a table  
+
+        #for each image in images_path:
+            # Read the image
+            
         pass
-    # Salviamo un inkml in una cartella in png
-    # leggiamo il png con Image.open
-    # convertiamo l'immagine in array
-    # salviamo l'array ed i dati dell'array in un file csv
 
-
+    def img2array(self):
+        img =Image.open(self.image_path)
+        img.resize(size=self.image_size)
+        img.convert('RGB')
+        return np.array(img)
 if __name__=="__main__":
     InkML = InkMLParser(sys.argv[1])
     ink = Inkml2Img(InkML,sys.argv[2])
