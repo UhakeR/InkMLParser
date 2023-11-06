@@ -1,16 +1,9 @@
 from xml.etree import ElementTree
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import sys
 import numpy.typing as nty
-from PIL import Image
-import os
-import yaml
 
 
 class InkMLParser:
-
     def __init__(self, file:str) -> None:
         """
         Initialize the parser with the path to an INKML file.
@@ -27,21 +20,23 @@ class InkMLParser:
         
         if self._continue_:
             self.root = self.tree.getroot()
-            self.UI = self.root.find("{http://www.w3.org/2003/InkML}annotation[@type='UI']").text
+            self.UI = self.root.find("{http://www.w3.org/2003/InkML}annotation[@type='UI']").text.replace('"','')
             self.annotation: str = self.root.findtext("{http://www.w3.org/2003/InkML}annotation[@type='truth']")
             self.traces_id = [x.attrib['id'] for x in self.root.findall("{http://www.w3.org/2003/InkML}trace")]
             self.symbols_data: [{"id":str, "annotation":str,"data":[]}] = list()
             self.traces_data: {'X': [float] ,'Y': [float]} = {'X': [], 'Y': []}
             self.combine: [str] = []
-            self.interupt: {str:[int]} = {}
             self._parse_traces_data()
             self._parse_symbols_data()
             if len(self.combine)>1:
                 for combination in self.combine:
-                    self.combine_symbols(combination)
+                    self._combine_symbols_util(combination)
 
 
     def _fix_traces_data_util(self,id:str) -> {'X': [], 'Y': []}:
+        """
+        Util used to fix and process traces data
+        """
         data = {'X': [], 'Y': []}
         element = "{0}trace[@id='{1}']".format("{http://www.w3.org/2003/InkML}",id)
         sublist = self.root.find(element).text.replace('\n','').split(',') 
@@ -77,7 +72,10 @@ class InkMLParser:
                 self.symbols_data.append({"id": trace_id[j].attrib['traceDataRef'], "annotation":annotation,"data": self._fix_traces_data_util(trace_id[j].attrib['traceDataRef'])})
 
 
-    def combine_symbols(self,combination):
+    def _combine_symbols_util(self,combination):
+        """
+        Util used to combine symbols devided in two or more traces
+        """
         X = []
         Y = []
         delete_index = []
@@ -113,118 +111,8 @@ class InkMLParser:
             dict: A dictionary containing parsed data.
         """
         return  {
-            'UI':self.UI,
+            'Unique_identifier':self.UI,
             'Annotation':self.annotation,
-            'Traces_Data':self.traces_data,
+            'TracesData':self.traces_data,
             'Symbols':self.symbols_data
         }
-       
-
-class Inkml2Img:
-    def __init__(self,traces_data:{'X': [float] ,'Y': [float]},UI:str,image_path: str,mode:str,breakpoints) -> None:
-        """
-        Save InkML file's trace data to image
-
-        Args: 
-            inkML (InkMLParser): InkMLParser object of the file you want to save as image
-            image_path (str): Path in which the image will be saved
-            mode (str):
-                'symbols' to save only simbols as img
-                'traces' to save the full pictures
-                'both' to save both symbols and traces
-        """
-        self.Traces = traces_data
-        self.UI = UI
-        self.image_path = image_path
-        self.breakpoints = breakpoints
-        self.path: str = ''
-        self.paths: [str] = []
-        match mode:
-            case 'symbols':
-                self.paths= self.saveSymbolsImg()
-
-            case 'traces':
-                self.path = self.saveTracesAsImage()
-
-            case 'both':
-                self.paths= self.saveSymbolsImg()
-                self.path = self.saveTracesAsImage()
-
-    
-    def saveTracesAsImage(self) -> str:  
-        name = self.UI.replace('"','').replace('.ink','')
-        image_path = f'{self.image_path}\{name}.png'
-        Traces = self.Traces['Traces_Data']
-        self.plot(Traces,image_path)
-        return image_path
-    
-    def saveSymbolsImg(self) -> [str]:
-        name = self.UI.replace('"','').replace('.ink','')
-        images_path: [str]=[]
-        for symbol in self.Traces['Symbols']:
-            image_path = f'{self.image_path}\{name}_{symbol["id"]}.png'
-            images_path.append(images_path)
-            self.plot(symbol['data'],image_path)
-        return images_path
-    
-    def plot(self,data,image_path:str) -> None:
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.gca().invert_yaxis()
-        plt.rcParams["figure.figsize"] = (20,3)
-        try:
-            plt.plot(np.array(data['X']),np.array(data['Y']) , color='black',linewidth=3)
-        except:
-            for i in range(len(data['X'])):
-                try: 
-                    plt.plot(np.array(data['X'][i]),np.array(data['Y'][i]) , color='black',linewidth=3)
-                except ValueError as war:
-                    continue
-        plt.axis('off')
-        plt.savefig(image_path)
-        plt.clf()
-    
-    def get_paths(self) -> {'full_image':str,'symbols_path':[str]}:
-        return {'full_image':self.path,'symbols_path':self.paths}
-
-
-
-
-
-class InkML2Table(InkMLParser):
-    def __init__(self, files_path:str, size:(int,int), temp:str) -> None:
-        
-        super().__init__(file=files_path)
-        self.temp = temp
-        self.image_size = size
-        self.data = self.getData()
-        self.mode = 'both'
-        Imgs = Inkml2Img(self.data,self.UI,self.temp,mode=self.mode,breakpoints=self.interupt)
-        self.images:{'full_image':str,'symbols_path':[str]} = Imgs.get_paths()
-
-        #TODO
-        #Parse the InkML file
-        #Get the InkML metadata
-        #Save the InkML symbols as image
-        #Save the inkML traces as image
-        #Read each image and create the array of it
-        #Connect the symbol data with the traces data with some unique key
-        #Save the traces and symbols data as a table  
-
-        #for each image in images:
-            # Read the image
-            
-
-    def img2array(self,img_path):
-        img =Image.open(img_path)
-        img.resize(size=self.image_size)
-        img.convert('RGB')
-        return np.array(img)
-    
-    
-
-
-
-if __name__=="__main__":
-
-    table = InkML2Table(r'C:\Users\urreh\Documents\MATH-OCR\data\TrainINKML_2013\TrainINKML\KAIST\KME1G3_0_sub_21.inkml',(128,128),r'C:\Users\urreh\Documents\MATH-OCR\data\Temp')
-    print(table.data)
